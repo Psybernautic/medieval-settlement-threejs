@@ -935,7 +935,7 @@ export function updateSeedThreeForestCameraBudgeted(
       seedThreeColorSelectionCoversView(
         forest.buckets,
         forest.slotByLayoutIndex,
-        selection.criticalViewIndices,
+        selection.criticalViewIndices ?? selection.viewIndices,
       );
     const residentShadowCoversDesiredUnion =
       seedThreeResidentSelectionCoversView(
@@ -1361,7 +1361,13 @@ export function getSeedThreeForestProfileBreakdown(
   const criticalNearByBucket = new Uint32Array(forest.buckets.length);
   const criticalOverviewByBucket = new Uint32Array(forest.buckets.length);
   let criticalColorTrees = 0;
-  for (const layoutIndex of forest.visibilitySelector.criticalViewIndices) {
+  const runtimeSelector = forest.visibilitySelector as typeof forest.visibilitySelector & {
+    viewIndices?: readonly number[];
+  };
+  const criticalViewIndices = runtimeSelector.criticalViewIndices
+    ?? runtimeSelector.viewIndices
+    ?? [];
+  for (const layoutIndex of criticalViewIndices) {
     const mapping = forest.slotByLayoutIndex[layoutIndex];
     if (!mapping) continue;
     const slot = forest.buckets[mapping.bucketIndex]?.slots[mapping.slotIndex];
