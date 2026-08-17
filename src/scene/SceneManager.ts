@@ -4,6 +4,10 @@ import { buildingPlacementYaw } from '../buildings/buildingPlacement.ts';
 import { createForestProps } from '../props/ForestProps.ts';
 import type { ForestManager } from '../props/ForestManager.ts';
 import {
+  createAncientEgyptOasisProps,
+  type AncientEgyptOasisProps,
+} from '../props/AncientEgyptOasisProps.ts';
+import {
   createGrassBladeField,
   GRASS_BLADES_ENABLED,
   type GrassBladeField,
@@ -25,7 +29,12 @@ import { createWorldLayout, type WorldLayout } from '../resources/WorldLayout.ts
 import type { FarmCrop, ForagingNodeState, ResourceNodeState } from '../resources/types.ts';
 import type { WorldGenerationSettings } from '../world/worldGenerationSettings.ts';
 import { resolveWorldDimensions } from '../world/worldGenerationSettings.ts';
-import { forestDensityScale } from '../world/worldGenerationSettings.ts';
+import { worldForestDensityScale } from '../world/worldGenerationSettings.ts';
+import {
+  ANCIENT_EGYPT_WORLD,
+  isAncientEgyptTerrainPreset,
+} from '../world/ancientEgyptWorldConstants.ts';
+import { isAncientEgyptVegetationHabitat } from '../world/ancientEgyptVegetation.ts';
 import type { RoadEdge } from '../roads/RoadEdge.ts';
 import { RoadJunctionBuilder } from '../roads/RoadJunctionBuilder.ts';
 import { RoadMaterialFactory } from '../roads/RoadMaterialFactory.ts';
@@ -172,6 +181,7 @@ export class SceneManager {
   private mushroomPatchVisuals: MushroomPatchVisuals | null = null;
   private deerWildlifeVisuals: DeerWildlifeVisuals | null = null;
   private fishWildlifeVisuals: FishWildlifeVisuals | null = null;
+  private readonly ancientEgyptOasisProps: AncientEgyptOasisProps | null;
   private latestForagingNodes: ForagingNodeState[] = [];
   private latestForagingMonth = 1;
   private vegetationBuilt = false;
@@ -260,31 +270,41 @@ export class SceneManager {
     this.waitForSubmittedWork = backend.waitForSubmittedWork;
     this.maxAnisotropy = backend.maxAnisotropy;
     this.materials = materials;
+    const ancientEgypt = isAncientEgyptTerrainPreset(worldLayout.settings.terrainPreset);
     this.scene = new THREE.Scene();
     this.scene.background = null;
-    this.scene.fog = new THREE.FogExp2(FAIR_DAY_FOG_COLOR, 0.00072);
+    this.scene.fog = new THREE.FogExp2(
+      ancientEgypt ? ANCIENT_EGYPT_WORLD.atmosphere.fogColor : FAIR_DAY_FOG_COLOR,
+      ancientEgypt ? ANCIENT_EGYPT_WORLD.atmosphere.fogDensity : 0.00072,
+    );
     // A slightly longer lens keeps the broad settlement readable while making
     // the layered Dinaric landscape feel less miniaturised.
     this.camera = new THREE.PerspectiveCamera(50, 1, 0.1, 2600);
     this.camera.layers.disable(TREE_SHADOW_CAST_LAYER);
-    this.sunDirection.setFromSphericalCoords(1, THREE.MathUtils.degToRad(43), THREE.MathUtils.degToRad(225));
+    this.sunDirection.setFromSphericalCoords(
+      1,
+      THREE.MathUtils.degToRad(
+        90 - (ancientEgypt ? ANCIENT_EGYPT_WORLD.atmosphere.initialSunElevationDeg : 47),
+      ),
+      THREE.MathUtils.degToRad(225),
+    );
     this.shadowKeyDirection.copy(this.sunDirection);
     this.terrain = terrain;
     this.fairTerrainMaterial = terrain.mesh.material as THREE.Material;
     this.terrainProjector = new TerrainProjector(this.terrain, this.camera, this.renderer.domElement);
     this.sky = new SkyCloudMesh({
       sunDirection: this.sunDirection,
-      cloudCoverage: 0.34,
-      cloudHeight: 210,
+      cloudCoverage: ancientEgypt ? ANCIENT_EGYPT_WORLD.atmosphere.cloudCoverage : 0.34,
+      cloudHeight: ancientEgypt ? ANCIENT_EGYPT_WORLD.atmosphere.cloudHeight : 210,
       cloudThickness: 68,
       cloudAbsorption: 0.46,
-      hazeStrength: 0.095,
+      hazeStrength: ancientEgypt ? ANCIENT_EGYPT_WORLD.atmosphere.hazeStrength : 0.095,
       maxCloudDistance: 6200,
       mieCoefficient: 0.0032,
       mieDirectionalG: 0.6,
       radius: SKY_DEPTH_OCCLUSION_RADIUS,
-      rayleigh: 0.7,
-      turbidity: 1.45,
+      rayleigh: ancientEgypt ? ANCIENT_EGYPT_WORLD.atmosphere.rayleigh : 0.7,
+      turbidity: ancientEgypt ? ANCIENT_EGYPT_WORLD.atmosphere.turbidity : 1.45,
       windSpeedX: 0.085,
       windSpeedZ: 0.045,
       widthSegments: 56,
@@ -298,6 +318,11 @@ export class SceneManager {
     this.clayDepositSystem = clayDepositSystem;
     this.mineralDepositSystem = mineralDepositSystem;
     this.worldLayout = worldLayout;
+    this.ancientEgyptOasisProps = isAncientEgyptTerrainPreset(
+      worldLayout.settings.terrainPreset,
+    )
+      ? createAncientEgyptOasisProps(terrain, worldLayout.riverLayout, worldLayout.seed)
+      : null;
     this.unsubscribeMapOverlayPreference = subscribeMapOverlayPreference(() => {
       this.applyMapOverlayPreference();
     });
@@ -324,6 +349,9 @@ export class SceneManager {
       this.previewGroup,
       this.selectionGroup,
     );
+    if (this.ancientEgyptOasisProps) {
+      this.scene.add(this.ancientEgyptOasisProps.group);
+    }
     this.precipitation = new PrecipitationRenderer(this.camera, this.scene);
     this.addLighting();
     this.postProcessor = createPostProcessor(backend, this.scene, this.camera);
@@ -516,6 +544,12 @@ export class SceneManager {
       || this.quarrySystem.isBlockedAt(x, z)
       || this.clayDepositSystem.isBlockedAt(x, z)
       || this.mineralDepositSystem.isBlockedAt(x, z);
+    const ancientEgypt = isAncientEgyptTerrainPreset(
+      this.worldLayout.settings.terrainPreset,
+    );
+    const isOutsideAncientEgyptHabitat = (x: number, z: number): boolean =>
+      ancientEgypt
+      && !isAncientEgyptVegetationHabitat(this.worldLayout.riverLayout, x, z);
     const deerVisualsPromise = startStage('deer', () => deerVisualModulePromise.then(({
       createDeerWildlifeVisuals,
     }) => createDeerWildlifeVisuals(
@@ -560,6 +594,7 @@ export class SceneManager {
             || this.quarrySystem.isGrassBlockedAt(x, z)
             || this.clayDepositSystem.isGrassBlockedAt(x, z)
             || this.mineralDepositSystem.isGrassBlockedAt(x, z)
+            || isOutsideAncientEgyptHabitat(x, z)
             || (getActivePlacedBuildingLayout()?.isBlockedForGrass(x, z) ?? false),
           maxAnisotropy: this.maxAnisotropy,
           rendererBackend: this.rendererBackend,
@@ -577,11 +612,12 @@ export class SceneManager {
           this.riverSystem.isBlockedAt(x, z)
           || this.quarrySystem.isBlockedAt(x, z)
           || this.clayDepositSystem.isBlockedAt(x, z)
-          || this.mineralDepositSystem.isBlockedAt(x, z),
+          || this.mineralDepositSystem.isBlockedAt(x, z)
+          || isOutsideAncientEgyptHabitat(x, z),
         rendererBackend: this.rendererBackend,
         webgpuRenderer: this.rendererBackend === 'webgpu' ? this.renderer : undefined,
         treeSeed: this.worldLayout.treeSeed,
-        densityScale: forestDensityScale(this.worldLayout.settings.forestDensity),
+        densityScale: worldForestDensityScale(this.worldLayout.settings),
         forestCores: this.worldLayout.forestCores,
       },
     ));
@@ -653,6 +689,7 @@ export class SceneManager {
         this.quarrySystem.group,
         this.clayDepositSystem.group,
         this.mineralDepositSystem.group,
+        ...(this.ancientEgyptOasisProps ? [this.ancientEgyptOasisProps.group] : []),
       ],
       buildingRoot: this.selectionGroup,
     });
@@ -1042,7 +1079,12 @@ export class SceneManager {
   }
 
   setEnvironment(environment: EnvironmentState): void {
-    this.environment = environment;
+    const presentationEnvironment = isAncientEgyptTerrainPreset(
+      this.worldLayout.settings.terrainPreset,
+    ) && environment.weather === 'frost'
+      ? { ...environment, weather: 'fair' as const, snowCoverage: 0 }
+      : environment;
+    this.environment = presentationEnvironment;
     // Keep the authored zoom-responsive terrain material in rain. The old
     // conventional rain fallback flattened every close view into a plain green
     // field and discarded the layered dirt system entirely.
@@ -1052,9 +1094,9 @@ export class SceneManager {
     // state. Rain softens the directional key through its lighting profile,
     // but must not erase contact shadows from the terrain.
     this.terrain.mesh.receiveShadow = true;
-    this.materials.setEnvironment(environment);
-    this.precipitation.setEnvironment(environment);
-    this.forestManager?.setDeciduousFoliage(environment.deciduousFoliage);
+    this.materials.setEnvironment(presentationEnvironment);
+    this.precipitation.setEnvironment(presentationEnvironment);
+    this.forestManager?.setDeciduousFoliage(presentationEnvironment.deciduousFoliage);
     if (this.lastDayNightState) this.applyDayNight(this.lastDayNightState);
   }
 
@@ -1310,6 +1352,10 @@ export class SceneManager {
       this.scene.remove(this.fishWildlifeVisuals.group);
       this.fishWildlifeVisuals.dispose();
       this.fishWildlifeVisuals = null;
+    }
+    if (this.ancientEgyptOasisProps) {
+      this.scene.remove(this.ancientEgyptOasisProps.group);
+      this.ancientEgyptOasisProps.dispose();
     }
     this.riverSystem.dispose();
     disposeObject3D(this.riverSystem.group);

@@ -33,6 +33,15 @@ const fruitModules = import.meta.glob(
   },
 ) as Record<string, string>;
 
+const groundModules = import.meta.glob(
+  '../../../vendor/seedthree/assets/ground/desert_ground_{albedo,normal,roughness,height}.png',
+  {
+    eager: true,
+    query: '?url',
+    import: 'default',
+  },
+) as Record<string, string>;
+
 function byBasename(modules: Record<string, string>): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [path, url] of Object.entries(modules)) {
@@ -44,6 +53,7 @@ function byBasename(modules: Record<string, string>): Record<string, string> {
 const barkUrls = byBasename(barkModules);
 const leafUrls = byBasename(leafModules);
 const fruitUrls = byBasename(fruitModules);
+const groundUrls = byBasename(groundModules);
 
 export function seedThreeBarkUrl(name: string): string | undefined {
   return barkUrls[name];
@@ -55,4 +65,8 @@ export function seedThreeLeafUrl(name: string): string | undefined {
 
 export function seedThreeFruitUrl(name: string): string | undefined {
   return fruitUrls[name];
+}
+
+export function seedThreeGroundUrl(name: string): string | undefined {
+  return groundUrls[name];
 }

@@ -114,6 +114,10 @@ import { createSmokeTestHooks, installSmokeTestHooks } from '../e2e/smokeTestHoo
 import { sampleNaturalTerrainHeight } from '../terrain/TerrainHeight.ts';
 import { resolveWorldDimensions } from '../world/worldGenerationSettings.ts';
 import {
+  ANCIENT_EGYPT_WORLD,
+  isAncientEgyptTerrainPreset,
+} from '../world/ancientEgyptWorldConstants.ts';
+import {
   markFirstPlayable,
   markFirstPlayableAssetsReady,
   markVegetationReady,
@@ -1357,13 +1361,34 @@ export class App {
       .find((building) => building.kind === 'founders_camp');
     if (!foundersCamp) return;
 
-    this.cameraController.applyShowcaseView(
-      foundersCamp.x - 7,
-      foundersCamp.z + 6.3,
-      (-42 * Math.PI) / 180,
-      (40 * Math.PI) / 180,
-      42,
-    );
+    if (isAncientEgyptTerrainPreset(this.sceneManager?.worldLayout.settings.terrainPreset ?? '')) {
+      const openingView = ANCIENT_EGYPT_WORLD.openingView;
+      const nilePoint = this.sceneManager?.worldLayout.riverLayout.corridors[0]?.points
+        .reduce((nearest, point) => (
+          Math.abs(point.z - foundersCamp.z) < Math.abs(nearest.z - foundersCamp.z)
+            ? point
+            : nearest
+        ));
+      const campFocusX = foundersCamp.x - 7;
+      const focusX = nilePoint
+        ? campFocusX + (nilePoint.x - campFocusX) * openingView.riverContextBlend
+        : campFocusX;
+      this.cameraController.applyShowcaseView(
+        focusX,
+        foundersCamp.z + 6.3,
+        (openingView.yawDeg * Math.PI) / 180,
+        (openingView.pitchDeg * Math.PI) / 180,
+        openingView.distance,
+      );
+    } else {
+      this.cameraController.applyShowcaseView(
+        foundersCamp.x - 7,
+        foundersCamp.z + 6.3,
+        (-42 * Math.PI) / 180,
+        (40 * Math.PI) / 180,
+        42,
+      );
+    }
     this.initialSettlementViewApplied = true;
   }
 

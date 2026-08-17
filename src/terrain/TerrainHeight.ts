@@ -3,6 +3,10 @@ import type { RiverLayout } from '../rivers/RiverLayout.ts';
 import type { QuarryLayout } from '../quarries/QuarryLayout.ts';
 import { getActiveWorldDimensions, getActiveWorldGeneration } from '../world/worldGenerationContext.ts';
 import { topographyScale } from '../world/worldGenerationSettings.ts';
+import {
+  ANCIENT_EGYPT_WORLD,
+  isAncientEgyptTerrainPreset,
+} from '../world/ancientEgyptWorldConstants.ts';
 
 let activeRiverLayout: RiverLayout | null = null;
 let activeQuarryLayout: QuarryLayout | null = null;
@@ -163,6 +167,48 @@ function sampleKupaValleyHeight(x: number, z: number, relief: number, seed: numb
     + getEdgeHillHeight(x, z) * relief * 0.46;
 }
 
+function lerp(from: number, to: number, amount: number): number {
+  return from + (to - from) * amount;
+}
+
+function sampleNileValleyHeight(x: number, z: number, relief: number, seed: number): number {
+  const { terrainSize, generationHalf } = getActiveWorldDimensions();
+  const config = ANCIENT_EGYPT_WORLD.terrain;
+  const offset = presetNoiseOffset(seed);
+  const floodplain = activeRiverLayout?.sampleFloodplainBlend(x, z) ?? 0;
+  const oasis = activeRiverLayout?.sampleOasisBlend(x, z) ?? 0;
+  const cultivatedLand = Math.max(floodplain, oasis);
+  const terrainHalf = terrainSize * 0.5;
+  const edge = Math.max(Math.abs(x), Math.abs(z)) / Math.max(1, terrainHalf);
+
+  const duneWave = Math.sin((x + offset.x) * 0.018 + (z - offset.z) * 0.006)
+    * Math.sin((z + offset.z) * 0.013 - (x - offset.x) * 0.004);
+  const duneNoise = fbm(
+    (x + offset.x) * 0.0065,
+    (z + offset.z) * 0.0065,
+    4,
+  );
+  const desertHeight = config.desertBaseHeight
+    + duneWave * config.duneAmplitude * relief
+    + duneNoise * config.duneSecondaryAmplitude * relief
+    + smoothstep(config.rockyEdgeStart, 1, edge)
+      * config.rockyEdgeHeight
+      * (0.65 + ridgedFbm(x * 0.008, z * 0.008, 3) * 0.35)
+      * relief;
+
+  const siltVariation = fbm(
+    (x - offset.z) * 0.012,
+    (z + offset.x) * 0.012,
+    3,
+  ) * config.floodplainUndulation;
+  const northwardGrade = z / Math.max(1, generationHalf) * config.northwardGrade;
+  const floodplainHeight = config.floodplainBaseHeight + siltVariation + northwardGrade;
+  const oasisFloor = config.floodplainBaseHeight + siltVariation * 0.55 + 0.8;
+  const fertileHeight = lerp(floodplainHeight, oasisFloor, oasis * (1 - floodplain));
+
+  return lerp(desertHeight, fertileHeight, smoothstep(0.04, 0.92, cultivatedLand));
+}
+
 function sampleCustomMountainHeight(
   x: number,
   z: number,
@@ -293,6 +339,9 @@ export function sampleRawTerrainHeight(x: number, z: number): number {
   const basinX = layout?.drain.x ?? 0;
   const basinZ = layout?.drain.z ?? -88;
   const relief = topographyScale(settings.topography);
+  if (isAncientEgyptTerrainPreset(settings.terrainPreset)) {
+    return sampleNileValleyHeight(x, z, relief, settings.seed);
+  }
   if (settings.terrainPreset === 'kupa_valley') {
     return sampleKupaValleyHeight(x, z, relief, settings.seed);
   }

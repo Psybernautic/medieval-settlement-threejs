@@ -1,5 +1,9 @@
 import type { TerrainBounds } from '../terrain/Terrain.ts';
 import type { WorldTerrainPreset } from '../world/worldTerrainPresets.ts';
+import {
+  ANCIENT_EGYPT_WORLD,
+  isAncientEgyptTerrainPreset,
+} from '../world/ancientEgyptWorldConstants.ts';
 import { hashF64 } from './riverHash.ts';
 
 export type RiverPoint = {
@@ -14,7 +18,7 @@ export type RiverCorridor = {
   points: RiverPoint[];
 };
 
-export type InlandWaterBodyKind = 'pond' | 'lake';
+export type InlandWaterBodyKind = 'pond' | 'lake' | 'oasis';
 
 export type InlandWaterBody = {
   x: number;
@@ -77,7 +81,7 @@ export class RiverLayout {
     this.corridors = corridors;
     this.inlandWaterBodies = inlandWaterBodies;
     this.terrainPreset = terrainPreset;
-    this.segmentCells = buildRiverSegmentCells(corridors);
+    this.segmentCells = buildRiverSegmentCells(corridors, terrainPreset);
   }
 
   static create(options: RiverLayoutOptions): RiverLayout {
@@ -87,6 +91,19 @@ export class RiverLayout {
     const tributaryCount = options.tributaryCount ?? 1;
     const drain = options.drain ?? { x: 0, z: -88 };
     const terrainPreset = options.terrainPreset ?? 'custom';
+
+    if (isAncientEgyptTerrainPreset(terrainPreset)) {
+      const nile = buildNileCorridor(bounds, seed);
+      const mouth = nile.points[nile.points.length - 1];
+      return new RiverLayout(
+        bounds,
+        seed,
+        mouth ? { x: mouth.x, z: mouth.z } : drain,
+        [nile, ...buildNileCanals(nile, seed)],
+        buildDesertOases(bounds),
+        terrainPreset,
+      );
+    }
 
     if (terrainPreset === 'kupa_valley') {
       const corridor = buildKupaCorridor(bounds, seed);
@@ -209,6 +226,45 @@ export class RiverLayout {
     return this.sampleInlandWater(x, z).mask;
   }
 
+  /** Fertile black-land reach beyond the Nile and its irrigation canals. */
+  sampleFloodplainBlend(x: number, z: number): number {
+    if (!isAncientEgyptTerrainPreset(this.terrainPreset)) return 0;
+    let blend = 0;
+    for (const { a, b } of this.segmentsAt(x, z)) {
+      const hit = distanceToSegment(x, z, a.x, a.z, b.x, b.z);
+      const halfWidth = lerp(a.halfWidth, b.halfWidth, hit.t);
+      const bankDistance = Math.max(0, hit.distance - halfWidth);
+      blend = Math.max(
+        blend,
+        1 - smoothstep(
+          ANCIENT_EGYPT_WORLD.nile.floodplainInnerBank,
+          ANCIENT_EGYPT_WORLD.nile.floodplainOuterBank,
+          bankDistance,
+        ),
+      );
+    }
+    return blend;
+  }
+
+  /** Moist growth ring around authored desert oases. */
+  sampleOasisBlend(x: number, z: number): number {
+    if (!isAncientEgyptTerrainPreset(this.terrainPreset)) return 0;
+    let blend = 0;
+    for (const body of this.inlandWaterBodies) {
+      if (body.kind !== 'oasis') continue;
+      const normalizedDistance = normalizedWaterBodyDistance(x, z, body);
+      blend = Math.max(
+        blend,
+        1 - smoothstep(1, ANCIENT_EGYPT_WORLD.oasisVegetationOuterScale, normalizedDistance),
+      );
+    }
+    return blend;
+  }
+
+  sampleVegetationBlend(x: number, z: number): number {
+    return Math.max(this.sampleFloodplainBlend(x, z), this.sampleOasisBlend(x, z));
+  }
+
   isInlandWaterAt(x: number, z: number): boolean {
     return this.sampleInlandWaterMask(x, z) >= 0.48;
   }
@@ -274,6 +330,7 @@ export class RiverLayout {
   private sampleCorridor(
     x: number,
     z: number,
+    maximumDistance?: number,
   ): { distance: number; halfWidth: number; channelDepth: number; progress: number } | null {
     let bestDistance = Number.POSITIVE_INFINITY;
     let bestHalfWidth = 0;
@@ -289,7 +346,8 @@ export class RiverLayout {
       bestProgress = lerp(a.progress, b.progress, hit.t);
     }
 
-    if (!Number.isFinite(bestDistance) || bestDistance > bestHalfWidth * 0.95) return null;
+    const cutoff = maximumDistance ?? bestHalfWidth * 0.95;
+    if (!Number.isFinite(bestDistance) || bestDistance > cutoff) return null;
     return {
       distance: bestDistance,
       halfWidth: bestHalfWidth,
@@ -347,6 +405,83 @@ function buildKupaCorridor(bounds: TerrainBounds, seed: number): RiverCorridor {
   return { points };
 }
 
+function buildNileCorridor(bounds: TerrainBounds, seed: number): RiverCorridor {
+  const config = ANCIENT_EGYPT_WORLD.nile;
+  const spanX = bounds.maxX - bounds.minX;
+  const spanZ = bounds.maxZ - bounds.minZ;
+  const centerX = (bounds.minX + bounds.maxX) * 0.5 + spanX * config.centerXRatio;
+  const pointCount = Math.max(2, Math.ceil(spanZ / config.sampleSpacing) + 1);
+  const phase = hashF64(seed ^ 0x4e31, 3, 11) * TAU;
+  const points: RiverPoint[] = [];
+
+  // The Nile enters from the south (+Z) and flows north (-Z).
+  for (let index = 0; index < pointCount; index++) {
+    const progress = index / (pointCount - 1);
+    const z = lerp(bounds.maxZ, bounds.minZ, progress);
+    const broadMeander = Math.sin(
+      progress * TAU * config.broadMeanderCycles + phase,
+    ) * spanX * config.broadMeanderRatio;
+    const localMeander = Math.sin(
+      progress * TAU * config.localMeanderCycles - phase * 0.63,
+    ) * spanX * config.localMeanderRatio;
+    const widthNoise = hashF64(seed ^ 0x4e57, Math.floor(progress * 28), 5);
+    points.push({
+      x: centerX + broadMeander + localMeander,
+      z,
+      progress,
+      halfWidth: lerp(config.halfWidthMin, config.halfWidthMax, widthNoise),
+      channelDepth: lerp(config.channelDepthMin, config.channelDepthMax, widthNoise),
+    });
+  }
+  return { points };
+}
+
+function buildNileCanals(nile: RiverCorridor, seed: number): RiverCorridor[] {
+  const canalProfiles = [
+    { start: 0.2, end: 0.48, side: 1, reach: 86 },
+    { start: 0.56, end: 0.82, side: -1, reach: 72 },
+  ] as const;
+  return canalProfiles.map((profile, canalIndex) => {
+    const startIndex = Math.floor((nile.points.length - 1) * profile.start);
+    const endIndex = Math.floor((nile.points.length - 1) * profile.end);
+    const pointCount = Math.max(24, endIndex - startIndex + 1);
+    const jitter = (hashF64(seed ^ 0x1ca1, canalIndex, 7) - 0.5) * 12;
+    const points: RiverPoint[] = [];
+    for (let index = 0; index < pointCount; index++) {
+      const progress = index / (pointCount - 1);
+      const sourceIndex = Math.round(lerp(startIndex, endIndex, progress));
+      const source = nile.points[sourceIndex]!;
+      const lateralOffset = Math.sin(progress * Math.PI)
+        * (profile.reach + jitter)
+        * profile.side;
+      points.push({
+        x: source.x + lateralOffset,
+        z: source.z + Math.sin(progress * TAU) * 7,
+        progress,
+        halfWidth: ANCIENT_EGYPT_WORLD.nile.canalHalfWidth,
+        channelDepth: ANCIENT_EGYPT_WORLD.nile.canalDepth,
+      });
+    }
+    return { points };
+  });
+}
+
+function buildDesertOases(bounds: TerrainBounds): InlandWaterBody[] {
+  const halfX = (bounds.maxX - bounds.minX) * 0.5;
+  const halfZ = (bounds.maxZ - bounds.minZ) * 0.5;
+  const centerX = (bounds.minX + bounds.maxX) * 0.5;
+  const centerZ = (bounds.minZ + bounds.maxZ) * 0.5;
+  return ANCIENT_EGYPT_WORLD.oases.map((oasis) => ({
+    x: centerX + halfX * oasis.xRatio,
+    z: centerZ + halfZ * oasis.zRatio,
+    radiusX: oasis.radiusX,
+    radiusZ: oasis.radiusZ,
+    rotation: oasis.rotation,
+    depth: oasis.depth,
+    kind: 'oasis',
+  }));
+}
+
 function coastalShoreX(bounds: TerrainBounds, seed: number, z: number): number {
   const spanX = bounds.maxX - bounds.minX;
   const spanZ = bounds.maxZ - bounds.minZ;
@@ -371,6 +506,7 @@ function sampleCoastalSea(
 
 function buildRiverSegmentCells(
   corridors: ReadonlyArray<RiverCorridor>,
+  terrainPreset: WorldTerrainPreset,
 ): Map<string, IndexedRiverSegment[]> {
   const cells = new Map<string, IndexedRiverSegment[]>();
   for (const corridor of corridors) {
@@ -379,7 +515,9 @@ function buildRiverSegmentCells(
         a: corridor.points[i],
         b: corridor.points[i + 1],
       };
-      const reach = Math.max(segment.a.halfWidth, segment.b.halfWidth) * 0.95;
+      const reach = isAncientEgyptTerrainPreset(terrainPreset)
+        ? ANCIENT_EGYPT_WORLD.nile.segmentIndexReach
+        : Math.max(segment.a.halfWidth, segment.b.halfWidth) * 0.95;
       const minCellX = Math.floor((Math.min(segment.a.x, segment.b.x) - reach) / SEGMENT_CELL_SIZE);
       const maxCellX = Math.floor((Math.max(segment.a.x, segment.b.x) + reach) / SEGMENT_CELL_SIZE);
       const minCellZ = Math.floor((Math.min(segment.a.z, segment.b.z) - reach) / SEGMENT_CELL_SIZE);
@@ -541,6 +679,7 @@ function defaultInlandWaterBodies(
   drain: { x: number; z: number },
   terrainPreset: WorldTerrainPreset,
 ): InlandWaterBody[] {
+  if (isAncientEgyptTerrainPreset(terrainPreset)) return buildDesertOases(bounds);
   if (terrainPreset === 'delnice_meadow') return [buildDelnicePond(bounds, seed)];
   if (terrainPreset === 'kupa_valley' || terrainPreset === 'vinodol_coast') return [];
   return [buildConfluenceLake(drain)];
@@ -552,16 +691,7 @@ function sampleInlandWaterBody(
   body: InlandWaterBody,
   seed: number,
 ): { mask: number; depth: number } {
-  const dx = x - body.x;
-  const dz = z - body.z;
-  const cos = Math.cos(body.rotation);
-  const sin = Math.sin(body.rotation);
-  const localX = dx * cos + dz * sin;
-  const localZ = -dx * sin + dz * cos;
-  const normalizedDistance = Math.hypot(
-    localX / Math.max(1, body.radiusX),
-    localZ / Math.max(1, body.radiusZ),
-  );
+  const normalizedDistance = normalizedWaterBodyDistance(x, z, body);
   const meanRadius = Math.sqrt(body.radiusX * body.radiusZ);
   const shoreNoise =
     (valueNoise2D(x * 0.045 + seed * 0.001, z * 0.045 - 6.8, seed) - 0.5) * 9 +
@@ -572,6 +702,23 @@ function sampleInlandWaterBody(
   const mask = 1 - smoothstep(0.2, 1, distance);
   const depth = (1 - smoothstep(0.15, 1, distance)) * body.depth;
   return { mask, depth };
+}
+
+function normalizedWaterBodyDistance(
+  x: number,
+  z: number,
+  body: InlandWaterBody,
+): number {
+  const dx = x - body.x;
+  const dz = z - body.z;
+  const cos = Math.cos(body.rotation);
+  const sin = Math.sin(body.rotation);
+  const localX = dx * cos + dz * sin;
+  const localZ = -dx * sin + dz * cos;
+  return Math.hypot(
+    localX / Math.max(1, body.radiusX),
+    localZ / Math.max(1, body.radiusZ),
+  );
 }
 
 function valueNoise2D(x: number, z: number, seed = 0): number {

@@ -48,7 +48,7 @@ export function createForestSpawnConfig(
   const areaScale = (playableSize / LEGACY_PLAYABLE_SIZE) ** 2;
   const hillRingAreaScale =
     (terrainSize ** 2 - playableSize ** 2) / (LEGACY_TERRAIN_SIZE ** 2 - LEGACY_PLAYABLE_SIZE ** 2);
-  const density = Math.max(0.25, densityScale);
+  const density = Math.max(0.02, densityScale);
 
   return {
     extent,

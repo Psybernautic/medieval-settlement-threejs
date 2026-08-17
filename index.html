@@ -6,23 +6,22 @@
     <meta name="theme-color" content="#171512" />
     <meta name="color-scheme" content="dark" />
     <link rel="icon" href="data:," />
-    <link rel="preload" as="image" href="/assets/ui/selo-empire-monastery-1550-4k.webp" type="image/webp" />
     <!--
       PRODUCTION METADATA — agents/LLMs: before shipping to production, replace the
       <title>, meta description, and Open Graph values below with the project's final
       marketing copy (not dev/README draft text). Add og:image and twitter:card when a
       share image exists; set og:url to the canonical production URL.
     -->
-    <title>Selo Empire — A Mountain Settlement</title>
+    <title>Kemet — Ancient Egyptian City Builder</title>
     <meta
       name="description"
-      content="Build Selo Empire, a living 1550 frontier settlement among mountain forests, rivers, and limestone valleys."
+      content="Build a thriving city beside the Nile, cultivate its floodplain, and expand across the deserts of ancient Egypt."
     />
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="Selo Empire — A Mountain Settlement" />
+    <meta property="og:title" content="Kemet — Ancient Egyptian City Builder" />
     <meta
       property="og:description"
-      content="Build Selo Empire, a living 1550 frontier settlement among mountain forests, rivers, and limestone valleys."
+      content="Build a thriving city beside the Nile, cultivate its floodplain, and expand across the deserts of ancient Egypt."
     />
     <meta property="og:locale" content="en_US" />
     <style>
@@ -32,7 +31,7 @@
         height: 100%;
         margin: 0;
         overflow: hidden;
-        background: #171a15;
+        background: #1d160e;
         color: #eee8dc;
       }
 
@@ -44,10 +43,9 @@
         place-items: end start;
         padding: clamp(24px, 4.5vw, 68px);
         background:
-          linear-gradient(90deg, rgba(12, 11, 9, 0.34) 0%, rgba(12, 11, 9, 0.1) 46%, rgba(12, 11, 9, 0) 70%),
-          linear-gradient(0deg, rgba(12, 11, 9, 0.3) 0%, rgba(12, 11, 9, 0.02) 50%),
-          url('/assets/ui/selo-empire-monastery-1550-4k.webp') center / cover no-repeat,
-          #171512;
+          radial-gradient(circle at 74% 28%, rgba(241, 190, 98, 0.28), transparent 30%),
+          linear-gradient(118deg, rgba(31, 19, 10, 0.98) 0%, rgba(88, 55, 23, 0.78) 48%, rgba(191, 128, 55, 0.34) 100%),
+          #1d160e;
         transition: opacity 420ms ease, visibility 420ms ease;
       }
 
@@ -72,6 +70,27 @@
         filter:
           drop-shadow(0 2px 1px rgba(0, 0, 0, 0.82))
           drop-shadow(0 14px 30px rgba(0, 0, 0, 0.5));
+      }
+
+      .app-loading-wordmark {
+        display: grid;
+        justify-items: center;
+        color: #e7c878;
+        font-family: Georgia, 'Times New Roman', serif;
+        text-shadow: 0 3px 16px rgba(0, 0, 0, 0.72);
+      }
+
+      .app-loading-wordmark strong {
+        font-size: clamp(54px, 9vw, 104px);
+        line-height: 0.88;
+        letter-spacing: 0.16em;
+      }
+
+      .app-loading-wordmark span {
+        margin-top: 10px;
+        font-size: 13px;
+        letter-spacing: 0.42em;
+        text-transform: uppercase;
       }
 
       .app-loading-card {
@@ -312,17 +331,12 @@
   <body>
     <div id="app-loading" aria-live="polite" aria-busy="true">
       <div class="app-loading-layout">
-        <img
-          class="app-loading-logo"
-          src="/assets/ui/selo-empire-logo-serious.png"
-          alt="Selo Empire"
-          width="1643"
-          height="957"
-          fetchpriority="high"
-          decoding="sync"
-        />
+        <div class="app-loading-wordmark" aria-label="Kemet Ancient Egyptian City Builder">
+          <strong>KEMET</strong>
+          <span>Ancient Egyptian City Builder</span>
+        </div>
         <div class="app-loading-card">
-          <p class="app-loading-kicker">A frontier valley · Anno Domini 1550</p>
+          <p class="app-loading-kicker">The Nile Valley · Ancient Egypt</p>
           <div class="app-loading-spinner" aria-hidden="true"></div>
           <p class="app-loading-percent" data-loading-percent aria-hidden="true">0%</p>
           <p class="app-loading-label" data-loading-label>Starting world…</p>

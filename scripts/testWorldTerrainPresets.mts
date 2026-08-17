@@ -19,7 +19,13 @@ import {
   type WorldTerrainPreset,
 } from '../src/world/worldTerrainPresets.ts';
 
-const authoredPresets = ['kupa_valley', 'risnjak_pass', 'delnice_meadow', 'vinodol_coast'] as const;
+const authoredPresets = [
+  'nile_valley',
+  'kupa_valley',
+  'risnjak_pass',
+  'delnice_meadow',
+  'vinodol_coast',
+] as const;
 
 for (const [mapSize, preset] of Object.entries(MAP_SIZE_PRESETS)) {
   const dimensions = resolveWorldDimensions(mapSize as keyof typeof MAP_SIZE_PRESETS);
@@ -49,6 +55,39 @@ const customSeed = seedForTerrainPreset(
   'custom',
 );
 assert.equal(terrainPresetFromSeed(customSeed), 'custom');
+
+const nile = preparePreset('nile_valley', 0x19d_4a21);
+const nileDimensions = resolveWorldDimensions(nile.settings.mapSize);
+const nileWaterWidth = sampleWaterWidth(nile.layout.riverLayout, 0, nileDimensions.playableHalf);
+assert.ok(
+  nileWaterWidth >= 48 && nileWaterWidth <= 86,
+  `The Nile should remain a broad navigable river, got ${nileWaterWidth.toFixed(1)} m of water.`,
+);
+assert.equal(nile.layout.riverLayout.corridors.length, 3, 'The Nile preset needs one river and two irrigation canals.');
+assert.equal(nile.layout.riverLayout.inlandWaterBodies.length, 2, 'The desert should contain two oases.');
+assert.ok(
+  nile.layout.riverLayout.inlandWaterBodies.every((body) => body.kind === 'oasis'),
+  'Every Nile inland water body should be an authored oasis.',
+);
+assert.ok(
+  nile.layout.riverLayout.sampleVegetationBlend(0, 0) > 0.45,
+  'The founding area should lie on fertile black land near the Nile.',
+);
+assert.ok(
+  nile.layout.riverLayout.sampleVegetationBlend(nileDimensions.generationHalf * 0.86, 0) < 0.1,
+  'The outer desert should remain open instead of inheriting riparian foliage.',
+);
+const nileFloodplainHeight = sampleNaturalTerrainHeight(0, 0);
+const nileDesertHeight = sampleNaturalTerrainHeight(nileDimensions.generationHalf * 0.72, 0);
+assert.ok(
+  nileDesertHeight - nileFloodplainHeight >= 2.5,
+  'The desert terrace should sit visibly above the cultivated Nile floodplain.',
+);
+const nileBuildableRelief = sampleRelief(-5, 85, -150, 150, 17);
+assert.ok(
+  nileBuildableRelief <= 7.5,
+  `The east-bank founding area should remain broadly buildable, got ${nileBuildableRelief.toFixed(1)} m relief.`,
+);
 
 const kupa = preparePreset('kupa_valley', 0x13d_4a21);
 const kupaDimensions = resolveWorldDimensions(kupa.settings.mapSize);
@@ -183,6 +222,9 @@ assert.ok(
 );
 
 console.log('world terrain preset tests passed', {
+  nileWaterWidth: Number(nileWaterWidth.toFixed(1)),
+  nileBuildableRelief: Number(nileBuildableRelief.toFixed(1)),
+  nileDesertRise: Number((nileDesertHeight - nileFloodplainHeight).toFixed(1)),
   kupaWaterWidth: Number(kupaWaterWidth.toFixed(1)),
   kupaBenchRelief: Number(kupaBenchRelief.toFixed(1)),
   kupaWestRise: Number(kupaWestRise.toFixed(1)),

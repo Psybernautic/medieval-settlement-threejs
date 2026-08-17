@@ -1,6 +1,10 @@
 import { terrainPresetFromSeed, type WorldTerrainPreset } from './worldTerrainPresets.ts';
+import {
+  ANCIENT_EGYPT_WORLD,
+  isAncientEgyptTerrainPreset,
+} from './ancientEgyptWorldConstants.ts';
 
-export const DEFAULT_WORLD_SEED = 0x71a2e0d;
+export const DEFAULT_WORLD_SEED = ANCIENT_EGYPT_WORLD.defaultSeed;
 
 export type WorldMapSize = 'small' | 'medium' | 'large';
 export type WorldConflictMode = 'peaceful' | 'frontier';
@@ -76,7 +80,7 @@ export const DEFAULT_WORLD_GENERATION_SETTINGS: WorldGenerationSettings = {
   enemyPressure: 0,
 };
 
-const STORAGE_KEY = 'medieval-road-system:world-generation';
+const STORAGE_KEY = 'kemet-city-builder:world-generation:v1';
 export function resolveWorldDimensions(mapSize: WorldMapSize): WorldDimensions {
   const preset = MAP_SIZE_PRESETS[mapSize];
   return {
@@ -105,6 +109,12 @@ export function topographyScale(topography: number): number {
 export function forestDensityScale(forestDensity: number): number {
   const t = clampPercent(forestDensity) / 100;
   return 0.45 + t * 1.1;
+}
+
+export function worldForestDensityScale(settings: WorldGenerationSettings): number {
+  return isAncientEgyptTerrainPreset(settings.terrainPreset)
+    ? ANCIENT_EGYPT_WORLD.vegetation.densityScale
+    : forestDensityScale(settings.forestDensity);
 }
 
 export function hydrologyRiverCount(hydrology: number): number {

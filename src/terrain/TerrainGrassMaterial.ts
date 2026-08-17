@@ -27,6 +27,11 @@ import {
 import type { RoadWeatherUniforms } from '../roads/RoadSurfaceMaterial.ts';
 import type { TextureSet } from '../roads/RoadTextureLoader.ts';
 import type { TerrainBlendTextureSet } from '../roads/RoadTextureLoader.ts';
+import { getActiveWorldGeneration } from '../world/worldGenerationContext.ts';
+import {
+  ANCIENT_EGYPT_WORLD,
+  isAncientEgyptTerrainPreset,
+} from '../world/ancientEgyptWorldConstants.ts';
 
 type TslNode = {
   add(value: TslNode): TslNode;
@@ -127,6 +132,19 @@ function buildGrassBlendNodes(
   textures: TerrainBlendTextureSet,
   weather: RoadWeatherUniforms,
 ) {
+  const ancientEgypt = isAncientEgyptTerrainPreset(
+    getActiveWorldGeneration().terrainPreset,
+  );
+  const palette = ancientEgypt
+    ? ANCIENT_EGYPT_WORLD.terrainPalette
+    : {
+        fertile: [0.12, 0.24, 0.045] as const,
+        lush: [0.022, 0.052, 0.01] as const,
+        sand: [0.2, 0.225, 0.065] as const,
+        stableFertile: [0.085, 0.13, 0.035] as const,
+        stableLush: [0.038, 0.066, 0.02] as const,
+        stableSand: [0.145, 0.16, 0.055] as const,
+      };
   const grassUv = uv() as TslNode;
   const weightsRaw = (vertexColor() as TslNode).xyz;
   const weightSum = max(weightsRaw.x.add(weightsRaw.y).add(weightsRaw.z), float(0.0001) as TslNode) as TslNode;
@@ -365,9 +383,15 @@ function buildGrassBlendNodes(
   // Linear-space target families: fresh meadow green, shaded dark grass, and
   // a restrained green-dry layer. The authored albedos still supply the grain,
   // with a stable base preventing their distant mip averages from flattening.
-  const overviewLightColor = vec3(0.12, 0.24, 0.045) as TslNode;
-  const overviewDarkColor = vec3(0.022, 0.052, 0.01) as TslNode;
-  const overviewDryColor = vec3(0.2, 0.225, 0.065) as TslNode;
+  const overviewLightColor = vec3(
+    palette.fertile[0], palette.fertile[1], palette.fertile[2],
+  ) as TslNode;
+  const overviewDarkColor = vec3(
+    palette.lush[0], palette.lush[1], palette.lush[2],
+  ) as TslNode;
+  const overviewDryColor = vec3(
+    palette.sand[0], palette.sand[1], palette.sand[2],
+  ) as TslNode;
   const overviewBaseColor = overviewLightColor
     .mul(overviewLight)
     .add(overviewDarkColor.mul(overviewDark))
@@ -419,15 +443,21 @@ function buildGrassBlendNodes(
   ) as TslNode;
   const grassColorNode = mix(
     overviewTexturedColor,
-    blendedColor,
+    ancientEgypt ? overviewSampleColor : blendedColor,
     closeMaterialDetail,
   ) as TslNode;
   const grassStableColorNode = mix(
     overviewBaseColor,
-    (vec3(0.085, 0.13, 0.035) as TslNode)
+    (vec3(
+      palette.stableFertile[0], palette.stableFertile[1], palette.stableFertile[2],
+    ) as TslNode)
       .mul(w.x)
-      .add((vec3(0.038, 0.066, 0.02) as TslNode).mul(w.y))
-      .add((vec3(0.145, 0.16, 0.055) as TslNode).mul(w.z)),
+      .add((vec3(
+        palette.stableLush[0], palette.stableLush[1], palette.stableLush[2],
+      ) as TslNode).mul(w.y))
+      .add((vec3(
+        palette.stableSand[0], palette.stableSand[1], palette.stableSand[2],
+      ) as TslNode).mul(w.z)),
     closeMaterialDetail,
   ) as TslNode;
   const geometricNormal = attribute('normal', 'vec3') as TslNode;

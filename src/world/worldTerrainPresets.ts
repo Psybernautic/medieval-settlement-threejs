@@ -1,6 +1,8 @@
 import type { WorldGenerationSettings } from './worldGenerationSettings.ts';
+import { ANCIENT_EGYPT_WORLD } from './ancientEgyptWorldConstants.ts';
 
 export type WorldTerrainPreset =
+  | 'nile_valley'
   | 'kupa_valley'
   | 'risnjak_pass'
   | 'delnice_meadow'
@@ -23,6 +25,7 @@ const PRESET_VARIATION_MASK = 0x000f_ffff;
 const CUSTOM_SEED_FALLBACK_XOR = 0x4d3a_91e7;
 
 const PRESET_SEED_SIGNATURES = {
+  nile_valley: ANCIENT_EGYPT_WORLD.presetSeedSignature,
   kupa_valley: 0x6b70_0000,
   risnjak_pass: 0x7150_0000,
   delnice_meadow: 0x4310_0000,
@@ -30,6 +33,17 @@ const PRESET_SEED_SIGNATURES = {
 } as const satisfies Record<Exclude<WorldTerrainPreset, 'custom'>, number>;
 
 export const WORLD_TERRAIN_PRESETS: readonly WorldTerrainPresetDefinition[] = [
+  {
+    id: 'nile_valley',
+    name: 'Nile Valley',
+    region: 'Kemet · Lower Egypt',
+    description:
+      'A broad Nile channel crosses fertile black land between open desert terraces, with irrigation canals and remote oases.',
+    features: ['Broad Nile corridor', 'Fertile floodplain', 'Two desert oases'],
+    topography: ANCIENT_EGYPT_WORLD.topography,
+    hydrology: ANCIENT_EGYPT_WORLD.hydrology,
+    forestDensity: ANCIENT_EGYPT_WORLD.forestDensity,
+  },
   {
     id: 'kupa_valley',
     name: 'Kupa Valley',

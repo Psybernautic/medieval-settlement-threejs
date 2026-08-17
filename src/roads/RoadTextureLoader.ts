@@ -1,6 +1,10 @@
 ﻿import * as THREE from 'three';
 import { loadBitmapTexture } from '../utils/textureLoad.ts';
 
+import { getActiveWorldGeneration } from '../world/worldGenerationContext.ts';
+import { isAncientEgyptTerrainPreset } from '../world/ancientEgyptWorldConstants.ts';
+import { seedThreeGroundUrl } from '../vegetation/seedthree/seedThreeTextures.ts';
+
 export type TextureSet = {
   albedo: THREE.Texture;
   normal: THREE.Texture;
@@ -68,12 +72,31 @@ export class RoadTextureLoader {
     const [meadow, dense, dry] = await Promise.all([
       this.loadTerrainBlendSet('/assets/textures/terrain/manor_grass_meadow'),
       this.loadTerrainBlendSet('/assets/textures/terrain/manor_grass_dense'),
-      this.loadTerrainBlendSet(
-        '/assets/textures/terrain/manor_grass_dry',
-        '/assets/textures/terrain/manor_grass_dry/snow_leaf_albedo_atlas.png',
-      ),
+      isAncientEgyptTerrainPreset(getActiveWorldGeneration().terrainPreset)
+        ? this.loadAncientEgyptDesertSet()
+        : this.loadTerrainBlendSet(
+            '/assets/textures/terrain/manor_grass_dry',
+            '/assets/textures/terrain/manor_grass_dry/snow_leaf_albedo_atlas.png',
+          ),
     ]);
     return { meadow, dense, dry };
+  }
+
+  private async loadAncientEgyptDesertSet(): Promise<TextureSet> {
+    const requiredGroundUrl = (name: string): string => {
+      const url = seedThreeGroundUrl(name);
+      if (!url) throw new Error(`Missing SeedThree desert ground texture: ${name}`);
+      return url;
+    };
+    const wrapping = THREE.MirroredRepeatWrapping;
+    const [albedo, normal, roughness, ao, height] = await Promise.all([
+      this.load(requiredGroundUrl('desert_ground_albedo.png'), true, wrapping),
+      this.load(requiredGroundUrl('desert_ground_normal.png'), false, wrapping),
+      this.load(requiredGroundUrl('desert_ground_roughness.png'), false, wrapping),
+      this.load('/assets/textures/terrain/manor_grass_dry/ao.png', false, wrapping),
+      this.load(requiredGroundUrl('desert_ground_height.png'), false, wrapping),
+    ]);
+    return { albedo, normal, roughness, ao, height };
   }
 
   private async loadTerrainBlendSet(base: string, albedoUrl = `${base}/albedo.png`): Promise<TextureSet> {

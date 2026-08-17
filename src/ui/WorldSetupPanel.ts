@@ -27,7 +27,7 @@ export class WorldSetupPanel {
   private readonly resolve: (settings: WorldGenerationSettings) => void;
   private draft: WorldGenerationSettings = applyTerrainPreset(
     { ...DEFAULT_WORLD_GENERATION_SETTINGS },
-    'risnjak_pass',
+    'nile_valley',
   );
 
   private constructor(parent: HTMLElement, resolve: (settings: WorldGenerationSettings) => void) {
@@ -36,15 +36,10 @@ export class WorldSetupPanel {
     this.backdrop.className = 'world-setup-backdrop';
     this.backdrop.innerHTML = `
       <div class="world-setup-shell">
-        <img
-          class="world-setup-logo"
-          src="/assets/ui/selo-empire-logo-serious.png"
-          alt="Selo Empire"
-          width="1643"
-          height="957"
-          fetchpriority="high"
-          decoding="sync"
-        />
+        <div class="world-setup-logo" aria-label="Kemet Ancient Egyptian City Builder">
+          <strong>KEMET</strong>
+          <span>Ancient Egyptian City Builder</span>
+        </div>
         <form class="world-setup-dialog" aria-label="World setup">
           <div class="world-setup-scroll" aria-label="World settings">
             <section class="world-setup-section" aria-label="Map size">
@@ -60,8 +55,8 @@ export class WorldSetupPanel {
                 <span>Construction, survival, trade, and optimization without hostile raids.</span>
               </button>
               <button type="button" class="world-setup-mode-option" data-conflict-mode="frontier">
-                <strong>Contested frontier</strong>
-                <span>Build an economy that can support watchmen and withstand periodic Ottoman raiding parties.</span>
+                <strong>Contested nomes</strong>
+                <span>Build an economy that can support guards and withstand pressure from rival settlements and desert raiders.</span>
               </button>
             </div>
             <div class="world-setup-pressure" data-pressure-controls hidden>
@@ -108,7 +103,7 @@ export class WorldSetupPanel {
               <strong data-forest-value>${this.draft.forestDensity}</strong>
             </label>
             <input id="world-setup-forest" class="world-setup-slider" type="range" min="0" max="100" step="1" value="${this.draft.forestDensity}" />
-            <p class="world-setup-slider-hint">Low = open meadows and scattered woodland. High = dense conifer cover.</p>
+            <p class="world-setup-slider-hint">Low = open desert and sparse river growth. High = dense woodland.</p>
             </section>
             </div>
 
@@ -126,7 +121,7 @@ export class WorldSetupPanel {
               <strong data-resource-variety-value>${describeResourceVariety(this.draft.resourceVariety)} · ${this.draft.resourceVariety}</strong>
             </label>
             <input id="world-setup-resource-variety" class="world-setup-slider" type="range" min="0" max="100" step="5" value="${this.draft.resourceVariety}" />
-            <p class="world-setup-slider-hint">Specialized regions concentrate extra deposits and rich mineral rolls into fewer resource families. Staffed Trading Posts can import iron and Adriatic salt after local seams run short; trade supplements physical geology rather than replacing it.</p>
+            <p class="world-setup-slider-hint">Specialized regions concentrate extra deposits and rich mineral rolls into fewer resource families. Staffed Trading Posts can import iron and salt after local sources run short; trade supplements physical geology rather than replacing it.</p>
             <div class="world-setup-resource-summary" data-resource-summary aria-live="polite">${this.resourceSummaryMarkup()}</div>
             </section>
 
@@ -286,8 +281,8 @@ export class WorldSetupPanel {
   private renderTerrainPresetOptions(): void {
     const grid = this.backdrop.querySelector<HTMLElement>('[data-landscape-grid]')!;
     const displayPresets = [
-      ...WORLD_TERRAIN_PRESETS.filter((preset) => preset.id === 'risnjak_pass'),
-      ...WORLD_TERRAIN_PRESETS.filter((preset) => preset.id !== 'risnjak_pass'),
+      ...WORLD_TERRAIN_PRESETS.filter((preset) => preset.id === 'nile_valley'),
+      ...WORLD_TERRAIN_PRESETS.filter((preset) => preset.id !== 'nile_valley'),
     ];
     grid.innerHTML = displayPresets.map((preset) => {
       const selected = preset.id === this.draft.terrainPreset ? ' is-selected' : '';

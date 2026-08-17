@@ -1,7 +1,13 @@
 import * as THREE from 'three';
 import { getActiveWorldDimensions } from '../world/worldGenerationContext.ts';
+import { getActiveWorldGeneration } from '../world/worldGenerationContext.ts';
+import { getActiveRiverLayout } from './TerrainHeight.ts';
+import { isAncientEgyptTerrainPreset } from '../world/ancientEgyptWorldConstants.ts';
 
 export function sampleTerrainBlendWeights(x: number, z: number): [number, number, number] {
+  if (isAncientEgyptTerrainPreset(getActiveWorldGeneration().terrainPreset)) {
+    return sampleAncientEgyptTerrainBlendWeights(x, z);
+  }
   const warpX = fbm(x * 0.006 + 41.1, z * 0.006 - 17.8, 4) * 22;
   const warpZ = fbm(x * 0.006 - 12.5, z * 0.006 + 73.2, 4) * 22;
   const wx = x + warpX;
@@ -14,6 +20,21 @@ export function sampleTerrainBlendWeights(x: number, z: number): [number, number
   const rawDense = smoothstep(0.72, 0.94, denseNoise) * 0.38 + 0.1 + hillT * 0.26;
   const rawDry = smoothstep(0.72, 0.94, dryNoise) * 0.3 + 0.14 + hillT * 0.12;
   const sum = Math.max(rawMeadow + rawDense + rawDry, 0.0001);
+  return [rawMeadow / sum, rawDense / sum, rawDry / sum];
+}
+
+function sampleAncientEgyptTerrainBlendWeights(x: number, z: number): [number, number, number] {
+  const vegetationBlend = getActiveRiverLayout()?.sampleVegetationBlend(x, z) ?? 0;
+  const fieldNoise = fbm(x * 0.018 + 31.7, z * 0.018 - 19.4, 3) + 0.5;
+  const moisture = THREE.MathUtils.clamp(
+    vegetationBlend * THREE.MathUtils.lerp(0.86, 1.08, fieldNoise),
+    0,
+    1,
+  );
+  const rawMeadow = 0.035 + moisture * (0.94 + fieldNoise * 0.22);
+  const rawDense = 0.015 + moisture * moisture * (0.28 + (1 - fieldNoise) * 0.18);
+  const rawDry = 0.08 + (1 - moisture) * 2.35;
+  const sum = rawMeadow + rawDense + rawDry;
   return [rawMeadow / sum, rawDense / sum, rawDry / sum];
 }
 

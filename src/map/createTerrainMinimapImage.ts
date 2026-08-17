@@ -3,6 +3,11 @@ import type { TerrainBounds } from '../terrain/Terrain.ts';
 import { sampleTerrainBlendWeights } from '../terrain/TerrainBlendWeights.ts';
 import { riverFieldBounds } from './worldToMapPercent.ts';
 import { yieldToMain } from '../utils/yieldToMain.ts';
+import { getActiveWorldGeneration } from '../world/worldGenerationContext.ts';
+import {
+  ANCIENT_EGYPT_WORLD,
+  isAncientEgyptTerrainPreset,
+} from '../world/ancientEgyptWorldConstants.ts';
 
 const MINIMAP_RESOLUTION = 512;
 const ROWS_PER_YIELD = 32;
@@ -62,20 +67,36 @@ function sampleMinimapColor(
   x: number,
   z: number,
 ): { r: number; g: number; b: number } {
+  const ancientEgypt = isAncientEgyptTerrainPreset(
+    getActiveWorldGeneration().terrainPreset,
+  );
+  const palette = ancientEgypt
+    ? {
+        meadow: ANCIENT_EGYPT_WORLD.minimapColors.fertile,
+        dense: ANCIENT_EGYPT_WORLD.minimapColors.lush,
+        dry: ANCIENT_EGYPT_WORLD.minimapColors.sand,
+        water: ANCIENT_EGYPT_WORLD.minimapColors.water,
+        mud: ANCIENT_EGYPT_WORLD.minimapColors.silt,
+      }
+    : {
+        ...GRASS_COLORS,
+        water: WATER_COLOR,
+        mud: MUD_COLOR,
+      };
   if (riverField.isRenderedWetAt(x, z)) {
-    return WATER_COLOR;
+    return palette.water;
   }
 
   const [meadow, dense, dry] = sampleTerrainBlendWeights(x, z);
   const grass = {
-    r: GRASS_COLORS.meadow.r * meadow + GRASS_COLORS.dense.r * dense + GRASS_COLORS.dry.r * dry,
-    g: GRASS_COLORS.meadow.g * meadow + GRASS_COLORS.dense.g * dense + GRASS_COLORS.dry.g * dry,
-    b: GRASS_COLORS.meadow.b * meadow + GRASS_COLORS.dense.b * dense + GRASS_COLORS.dry.b * dry,
+    r: palette.meadow.r * meadow + palette.dense.r * dense + palette.dry.r * dry,
+    g: palette.meadow.g * meadow + palette.dense.g * dense + palette.dry.g * dry,
+    b: palette.meadow.b * meadow + palette.dense.b * dense + palette.dry.b * dry,
   };
 
   const shoreGrass = riverField.sampleMudBlendAt(x, z);
   const mudMix = (1 - shoreGrass) * 0.88;
-  return blendColors(grass, MUD_COLOR, mudMix);
+  return blendColors(grass, palette.mud, mudMix);
 }
 
 function blendColors(

@@ -13,6 +13,11 @@ import {
   GORSKI_KOTAR_LATITUDE_DEG,
   GORSKI_KOTAR_LONGITUDE_DEG,
 } from '../sky/gorskiKotarCelestial.ts';
+import { getActiveWorldGeneration } from './worldGenerationContext.ts';
+import {
+  ANCIENT_EGYPT_WORLD,
+  isAncientEgyptTerrainPreset,
+} from './ancientEgyptWorldConstants.ts';
 
 export type DayNightGrade = {
   saturation: number;
@@ -49,7 +54,6 @@ export type DayNightLightingState = {
 };
 
 const SUN_DIRECTION = new THREE.Vector3();
-const SETTLEMENT_LATITUDE_RAD = THREE.MathUtils.degToRad(GORSKI_KOTAR_LATITUDE_DEG);
 const SOLAR_NOON_HOUR = 12.75;
 const AXIAL_TILT_DEG = 23.44;
 const DAYS_PER_YEAR = CALENDAR_DAYS_PER_MONTH * CALENDAR_MONTHS_PER_YEAR;
@@ -78,6 +82,9 @@ export function computeDayNightState(
   target?: DayNightLightingState,
 ): DayNightLightingState {
   const hour = fractionalHour(clock);
+  const ancientEgypt = isAncientEgyptTerrainPreset(
+    getActiveWorldGeneration().terrainPreset,
+  );
   const smokeAllowed = !laborPaused;
   const elevationDeg = computeSolarPosition(clock, hour);
 
@@ -99,27 +106,50 @@ export function computeDayNightState(
   const sunIntensity = lerp(0.018, 5.2, Math.pow(sunVisible, 0.58))
     * lerp(0.8, 1, highSun);
 
-  let hemiSkyColor = lerpColor(0x6888a7, 0xd9e8ec, dayAmount);
+  let hemiSkyColor = lerpColor(
+    0x6888a7,
+    ancientEgypt ? ANCIENT_EGYPT_WORLD.atmosphere.hemiSkyColor : 0xd9e8ec,
+    dayAmount,
+  );
   hemiSkyColor = lerpColor(hemiSkyColor, 0xdfa17a, dawn * 0.28);
   hemiSkyColor = lerpColor(hemiSkyColor, 0xb9634d, dusk * 0.36);
-  let hemiGroundColor = lerpColor(0x516773, 0x59634f, dayAmount);
+  let hemiGroundColor = lerpColor(
+    0x516773,
+    ancientEgypt ? ANCIENT_EGYPT_WORLD.atmosphere.hemiGroundColor : 0x59634f,
+    dayAmount,
+  );
   hemiGroundColor = lerpColor(hemiGroundColor, 0x6a5147, dusk * 0.16);
   const hemiIntensity = lerp(1.35, 1.55, dayAmount) + goldenHour * 0.08;
 
-  let ambientColor = lerpColor(0x778fa9, 0xb8c8d2, dayAmount);
+  let ambientColor = lerpColor(
+    0x778fa9,
+    ancientEgypt ? ANCIENT_EGYPT_WORLD.atmosphere.ambientColor : 0xb8c8d2,
+    dayAmount,
+  );
   ambientColor = lerpColor(ambientColor, 0x8f7472, dawn * 0.2);
   ambientColor = lerpColor(ambientColor, 0x7c5751, dusk * 0.27);
   const ambientIntensity = lerp(0.5, 0.18, dayAmount);
   const buildingIndirectIntensity = lerp(0.02, 0.105, dayAmount);
 
-  let fillColor = lerpColor(0xaccbe2, 0xa8c6d8, dayAmount);
+  let fillColor = lerpColor(
+    0xaccbe2,
+    ancientEgypt ? ANCIENT_EGYPT_WORLD.atmosphere.fillColor : 0xa8c6d8,
+    dayAmount,
+  );
   fillColor = lerpColor(fillColor, 0x88768e, goldenHour * 0.22);
   const fillIntensity = lerp(0.68, 0.34, dayAmount);
 
-  let fogColor = lerpColor(NIGHT_FOG_COLOR, FAIR_DAY_FOG_COLOR, dayAmount);
+  let fogColor = lerpColor(
+    NIGHT_FOG_COLOR,
+    ancientEgypt ? ANCIENT_EGYPT_WORLD.atmosphere.fogColor : FAIR_DAY_FOG_COLOR,
+    dayAmount,
+  );
   fogColor = lerpColor(fogColor, 0xbc8c77, dawn * 0.34);
   fogColor = lerpColor(fogColor, 0xa36b5a, dusk * 0.3);
-  const fogDensity = lerp(0.0007, 0.00072, dayAmount) + goldenHour * 0.00008;
+  const fogDensity = ancientEgypt
+    ? lerp(0.00064, ANCIENT_EGYPT_WORLD.atmosphere.fogDensity, dayAmount)
+      + goldenHour * 0.00005
+    : lerp(0.0007, 0.00072, dayAmount) + goldenHour * 0.00008;
   const eveningWindowGlow = computeEveningWindowGlow(hour, night);
 
   const state = target ?? {
@@ -219,8 +249,13 @@ function computeSolarPosition(
   const declinationRad = THREE.MathUtils.degToRad(-AXIAL_TILT_DEG * Math.cos(annualAngle));
   const hourAngleRad = THREE.MathUtils.degToRad((hour - SOLAR_NOON_HOUR) * 15);
 
-  const sinLatitude = Math.sin(SETTLEMENT_LATITUDE_RAD);
-  const cosLatitude = Math.cos(SETTLEMENT_LATITUDE_RAD);
+  const latitudeRad = THREE.MathUtils.degToRad(
+    isAncientEgyptTerrainPreset(getActiveWorldGeneration().terrainPreset)
+      ? ANCIENT_EGYPT_WORLD.atmosphere.latitudeDeg
+      : GORSKI_KOTAR_LATITUDE_DEG,
+  );
+  const sinLatitude = Math.sin(latitudeRad);
+  const cosLatitude = Math.cos(latitudeRad);
   const sinDeclination = Math.sin(declinationRad);
   const cosDeclination = Math.cos(declinationRad);
   const sinHourAngle = Math.sin(hourAngleRad);

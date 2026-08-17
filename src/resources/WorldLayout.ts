@@ -19,7 +19,7 @@ import {
   hydrologyTributaryCount,
   resolveWorldDimensions,
   scaledRiverDrain,
-  forestDensityScale,
+  worldForestDensityScale,
   normalizeWorldGenerationSettings,
   type WorldGenerationSettings,
 } from '../world/worldGenerationSettings.ts';
@@ -33,6 +33,8 @@ import {
   createRegionalResourcePlan,
   type RegionalResourcePlan,
 } from '../world/regionalResourceDistribution.ts';
+import { isAncientEgyptTerrainPreset } from '../world/ancientEgyptWorldConstants.ts';
+import { createAncientEgyptVegetationCores } from '../world/ancientEgyptVegetation.ts';
 
 export { DEFAULT_WORLD_SEED } from '../world/worldGenerationSettings.ts';
 
@@ -77,9 +79,11 @@ export function createWorldLayout(settings: WorldGenerationSettings = DEFAULT_WO
     ordinarySiteCount: resourcePlan.ordinaryQuarryCount,
     richSiteCount: resourcePlan.richStoneDepositCount,
   });
-  const densityScale = forestDensityScale(normalizedSettings.forestDensity);
+  const densityScale = worldForestDensityScale(normalizedSettings);
   const spawnConfig = createForestSpawnConfig(dims.generationSize, dims.terrainSize, densityScale);
-  const forestCores = createForestCores(mulberry32(forestSeed), spawnConfig);
+  const forestCores = isAncientEgyptTerrainPreset(normalizedSettings.terrainPreset)
+    ? createAncientEgyptVegetationCores(riverLayout)
+    : createForestCores(mulberry32(forestSeed), spawnConfig);
   let foragingLayout = ForagingLayout.create({
     forestCores,
     riverLayout,

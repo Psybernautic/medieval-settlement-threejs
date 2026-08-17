@@ -6,10 +6,12 @@ import { WorldLayoutRegistry } from '../resources/WorldLayoutRegistry.ts';
 import { Terrain } from '../terrain/Terrain.ts';
 import {
   DEFAULT_WORLD_GENERATION_SETTINGS,
-  forestDensityScale,
+  worldForestDensityScale,
   resolveWorldDimensions,
   type WorldGenerationSettings,
 } from './worldGenerationSettings.ts';
+import { isAncientEgyptTerrainPreset } from './ancientEgyptWorldConstants.ts';
+import { isAncientEgyptVegetationHabitat } from './ancientEgyptVegetation.ts';
 import {
   clayDepositMaxYield,
   clayDepositNodeId,
@@ -83,7 +85,11 @@ export function computeWorldBootstrapDataFromLayout(worldLayout: WorldLayout): W
     riverField.isBlockedForProps(x, z)
     || worldLayout.quarryLayout.isBlockedForProps(x, z)
     || worldLayout.clayDepositLayout.isBlockedForProps(x, z)
-    || worldLayout.mineralDepositLayout.isBlockedForProps(x, z);
+    || worldLayout.mineralDepositLayout.isBlockedForProps(x, z)
+    || (
+      isAncientEgyptTerrainPreset(worldLayout.settings.terrainPreset)
+      && !isAncientEgyptVegetationHabitat(worldLayout.riverLayout, x, z)
+    );
 
   const quarries: WorldBootstrapQuarry[] = registry.definitionList
     .filter((definition) => definition.kind === 'quarry')
@@ -126,7 +132,7 @@ export function computeWorldBootstrapDataFromLayout(worldLayout: WorldLayout): W
 
   const treePlacements = computeForestTreePlacements(dims.generationSize, dims.terrainSize, isBlockedAt, {
     treeSeed: worldLayout.treeSeed,
-    densityScale: forestDensityScale(worldLayout.settings.forestDensity),
+    densityScale: worldForestDensityScale(worldLayout.settings),
     // Use the same authored woodland cores as the visual forest. Recreating a
     // second core set from the tree seed makes authoritative tree positions and
     // rendered trunks disagree even when their layout indices happen to match.
