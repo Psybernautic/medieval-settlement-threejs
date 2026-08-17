@@ -18,6 +18,7 @@
     "generate:world-bootstrap": "node --experimental-strip-types scripts/generateWorldBootstrap.mts",
     "generate:game-balance": "node --experimental-strip-types scripts/generateGameBalance.mts",
     "generate:celestial-catalog": "node scripts/generateCelestialCatalog.mjs",
+    "generate:raspberry-fruit": "node scripts/generateRaspberryFruitGlb.mjs",
     "generate:hydrology-grid": "node --experimental-strip-types scripts/generateHydrologyGrid.mts",
     "test:hydrology": "npx tsx scripts/testHydrology.mts",
     "audio:generate": "node --experimental-strip-types scripts/generateElevenLabsAudio.mts",
@@ -198,6 +199,7 @@
     "vite": "^8.1.4"
   },
   "dependencies": {
+    "lil-gui": "^0.21.0",
     "spacetimedb": "2.0.1",
     "three": "^0.185.1"
   }

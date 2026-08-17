@@ -3,9 +3,11 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { generateDichotomous } from '@seedthree/core/dichotomous.js';
 import { buildFoliage } from '@seedthree/core/leaf-cards.js';
 import { Rng } from '@seedthree/core/rng.js';
-import { bilberry } from '@seedthree/species/bilberry.js';
-import { commonJuniper } from '@seedthree/species/common-juniper.js';
-import { raspberry } from '@seedthree/species/raspberry.js';
+import {
+  bilberry,
+  commonJuniper,
+  raspberry,
+} from './gorskiShrubSpecies.ts';
 
 export type GorskiShrubKind = 'bush' | 'fern' | 'juniper' | 'raspberry';
 

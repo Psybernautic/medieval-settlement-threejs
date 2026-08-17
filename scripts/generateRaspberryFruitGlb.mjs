@@ -1,4 +1,4 @@
-import { writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import * as THREE from 'three';
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
@@ -104,7 +104,9 @@ const arrayBuffer = await new Promise((resolveExport, rejectExport) => {
     truncateDrawRange: true,
   });
 });
-const outputPath = resolve('vendor/seedthree/assets/fruits/raspberry_cluster.glb');
+const outputDirectory = resolve('src/assets/seedthree/fruits');
+const outputPath = resolve(outputDirectory, 'raspberry_cluster.glb');
+mkdirSync(outputDirectory, { recursive: true });
 writeFileSync(outputPath, Buffer.from(arrayBuffer));
 console.log(JSON.stringify({
   outputPath,

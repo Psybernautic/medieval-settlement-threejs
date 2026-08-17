@@ -377,7 +377,7 @@ assert.match(
 );
 for (const fruitFile of ['apple.glb', 'cherry_pair.glb']) {
   assert.ok(
-    existsSync(join(process.cwd(), 'vendor/seedthree/assets/fruits', fruitFile)),
+    existsSync(join(process.cwd(), 'src/assets/seedthree/fruits', fruitFile)),
     `SkyeShark's exact ${fruitFile} orchard asset should be packaged`,
   );
   assert.match(

@@ -407,10 +407,10 @@ assert.doesNotMatch(
   'harvestable raspberry resources must use generated cane geometry and real GLB fruit, not whole-bush cards',
 );
 assert.ok(existsSync(
-  `${projectRoot}vendor/seedthree/assets/fruits/raspberry_cluster.glb`,
+  `${projectRoot}src/assets/seedthree/fruits/raspberry_cluster.glb`,
 ));
 assert.ok(existsSync(
-  `${projectRoot}vendor/seedthree/assets/leaves/raspberry_spray_albedo.png`,
+  `${projectRoot}src/assets/seedthree/leaves/raspberry_spray_albedo.png`,
 ));
 
 const undergrowthVisuals = readFileSync(

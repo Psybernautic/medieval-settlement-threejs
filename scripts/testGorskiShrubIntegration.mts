@@ -41,7 +41,7 @@ assertGlb('cherry_pair.glb', 1_000_000);
 assertGlb('raspberry_cluster.glb', 50_000);
 
 const raspberrySpray = readFileSync(
-  `${projectRoot}vendor/seedthree/assets/leaves/raspberry_spray_albedo.png`,
+  `${projectRoot}src/assets/seedthree/leaves/raspberry_spray_albedo.png`,
 );
 assert.deepEqual(
   [...raspberrySpray.subarray(0, 8)],
@@ -135,7 +135,7 @@ function updateHash(
 }
 
 function assertGlb(fileName: string, minimumBytes: number): void {
-  const bytes = readFileSync(`${projectRoot}vendor/seedthree/assets/fruits/${fileName}`);
+  const bytes = readFileSync(`${projectRoot}src/assets/seedthree/fruits/${fileName}`);
   assert.equal(bytes.subarray(0, 4).toString('ascii'), 'glTF', `${fileName} must be a binary glTF`);
   assert.equal(bytes.readUInt32LE(4), 2, `${fileName} must use glTF 2.0`);
   assert.equal(bytes.readUInt32LE(8), bytes.byteLength, `${fileName} must have a valid GLB length header`);
